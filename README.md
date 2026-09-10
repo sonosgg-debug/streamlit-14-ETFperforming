@@ -70,7 +70,9 @@ streamlit run app.py
 ## 📁 프로젝트 구조
 
 ```text
-40 ETFperforming/
+40 ETFscreener/
+├── .github/                # GitHub Actions 워크플로우 (keep_alive.yml)
+├── .gitignore              # 깃 관리 제외 설정
 ├── app.py                  # Streamlit 웹 대시보드 메인 애플리케이션
 ├── data_loader.py          # 하이브리드 캐시 로더, 시계열 주가 로더 및 엑셀 다운로드 엔진
 ├── build_master_data.py    # K/US 전체 ETF 전수 수집 및 마스터 데이터셋 구축기
