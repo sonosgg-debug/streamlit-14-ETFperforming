@@ -1,0 +1,19 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+
+# Data Cache
+cache/
+*.csv
+!etf_master_data.csv
+
+# Streamlit
+.streamlit/
