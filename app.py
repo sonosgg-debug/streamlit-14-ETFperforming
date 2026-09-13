@@ -177,7 +177,7 @@ st.markdown("""
 # 3. 데이터 로딩 캐시 함수
 # ==========================================
 @st.cache_data(ttl=3600, show_spinner=False)
-def get_cached_etf_data(force_refresh=False):
+def get_cached_etf_data(target_date_key: str, force_refresh: bool = False):
     return data_loader.load_etf_data(force_refresh=force_refresh)
 
 
@@ -294,8 +294,16 @@ with st.sidebar:
 force_refresh = st.session_state.force_reload
 st.session_state.force_reload = False
 
-with st.spinner("한국 및 미국 증시 ETF 데이터를 불러오는 중입니다..."):
-    df_raw, target_date = get_cached_etf_data(force_refresh=force_refresh)
+target_business_date = data_loader.get_latest_business_date()
+is_cached_today = data_loader.is_cache_available(target_business_date)
+
+if not is_cached_today or force_refresh:
+    spinner_msg = f"🔄 최신 영업일({target_business_date}) ETF 데이터를 자동으로 수집 및 정제하고 있습니다. 잠시만 기다려 주세요 (약 20~30초 소요)..."
+else:
+    spinner_msg = "한국 및 미국 증시 ETF 데이터를 불러오는 중입니다..."
+
+with st.spinner(spinner_msg):
+    df_raw, target_date, is_fallback = get_cached_etf_data(target_business_date, force_refresh=force_refresh)
 
 if df_raw.empty:
     st.error("데이터를 불러올 수 없습니다. 인터넷 연결 및 데이터 소스 상태를 확인해 주세요.")
@@ -373,6 +381,14 @@ st.markdown(
     f"</div>",
     unsafe_allow_html=True
 )
+
+# 데이터 수집 지연/Fallback 안내 배너
+if is_fallback:
+    st.warning(
+        f"⚠️ **외부 통신 지연 안내**: 최신 영업일({target_business_date}) 데이터의 자동 수집이 지연되어 "
+        f"기존 저장된 데이터({target_date} 기준)가 표시되고 있습니다. 최신 데이터로 업데이트를 원하시면 "
+        f"왼쪽 사이드바의 **'🔄 최신 데이터 강제 갱신'** 버튼을 클릭해 주세요."
+    )
 
 # 한국 3X/-3X 규제 예외 안내 배너
 if is_kr_3x_warning:

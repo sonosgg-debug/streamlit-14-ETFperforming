@@ -38,54 +38,106 @@ def get_latest_business_date():
     return (now_kst - datetime.timedelta(days=1)).strftime('%Y-%m-%d')
 
 
+def is_cache_available(target_date: str = None) -> bool:
+    """지정된 영업일(기본: 최신 영업일)의 캐시 파일이 존재하는지 확인"""
+    if not target_date:
+        target_date = get_latest_business_date()
+    today_clean = target_date.replace('-', '')
+    cache_path = os.path.join(CACHE_DIR, f"etf_summary_{today_clean}.csv")
+    return os.path.exists(cache_path) and os.path.getsize(cache_path) > 10000
+
+
+def cleanup_old_caches(keep_count: int = 5):
+    """디스크 공간 절약을 위해 최근 keep_count개 이외의 오래된 캐시 파일 자동 삭제"""
+    try:
+        if not os.path.exists(CACHE_DIR):
+            return
+        files = [f for f in os.listdir(CACHE_DIR) if f.startswith("etf_summary_") and f.endswith(".csv")]
+        files.sort(reverse=True) # 최신순 정렬
+        for old_f in files[keep_count:]:
+            old_path = os.path.join(CACHE_DIR, old_f)
+            try:
+                os.remove(old_path)
+            except Exception:
+                pass
+    except Exception as e:
+        print(f"[data_loader] 구형 캐시 정리 실패: {e}")
+
+
+def get_fallback_data_date() -> str:
+    """캐시 또는 마스터 파일로부터 실제 데이터의 기준 날짜를 추정"""
+    try:
+        if os.path.exists(CACHE_DIR):
+            files = [f for f in os.listdir(CACHE_DIR) if f.startswith("etf_summary_") and f.endswith(".csv")]
+            files.sort(reverse=True)
+            if files:
+                # etf_summary_YYYYMMDD.csv 에서 날짜 파싱
+                dt_str = files[0].replace("etf_summary_", "").replace(".csv", "")
+                if len(dt_str) == 8:
+                    return f"{dt_str[:4]}-{dt_str[4:6]}-{dt_str[6:8]}"
+        if os.path.exists(MASTER_FILE):
+            mtime = os.path.getmtime(MASTER_FILE)
+            return datetime.datetime.fromtimestamp(mtime).strftime('%Y-%m-%d')
+    except Exception:
+        pass
+    return "이전"
+
+
 def load_etf_data(force_refresh=False):
     """
     K Market 및 US Market 전체 ETF 데이터를 로드합니다.
-    - 캐시 파일 또는 마스터 데이터셋을 통해 0.1초 즉시 반환.
-    - force_refresh=True일 경우 build_master_data 모듈을 호출하여 최신 데이터 강제 수집.
-    반환값: (df_all, target_date_str)
+    - 최신 영업일의 캐시가 존재하면 0.1초 즉시 반환.
+    - 최신 영업일 캐시가 없거나 force_refresh=True일 경우:
+      자동으로 build_master_data 모듈을 호출하여 최신 종가 및 수익률을 수집/구축 후 반환.
+    - 외부 통신 장애로 최신 수집 실패 시에만 기존 마스터 파일을 Fallback으로 로드.
+    반환값: (df_all, target_date_str, is_fallback)
     """
-    date_display = get_latest_business_date()
-    today_clean = date_display.replace('-', '')
+    target_date = get_latest_business_date()
+    today_clean = target_date.replace('-', '')
     cache_path = os.path.join(CACHE_DIR, f"etf_summary_{today_clean}.csv")
 
-    # 1. 강제 갱신 요청 시
-    if force_refresh:
+    # 1. 강제 갱신이 아니고 당일 최신 캐시 파일이 이미 존재하는 경우 -> 초고속 반환
+    if not force_refresh and os.path.exists(cache_path):
         try:
-            import build_master_data
-            build_master_data.main()
+            df = pd.read_csv(cache_path, dtype={'코드/티커': str}, encoding='utf-8-sig')
+            if not df.empty and len(df) >= 100:
+                return df, target_date, False
         except Exception as e:
-            print(f"[data_loader] 데이터 강제 갱신 실패: {e}")
+            print(f"[data_loader] 당일 캐시 로드 오류: {e}")
 
-    # 2. 당일 캐시 파일 확인
+    # 2. 당일 캐시가 없거나 강제 갱신 요청 시 -> 최신 데이터 자동 수집 및 캐싱
+    print(f"[data_loader] 최신 영업일({target_date}) 데이터 구축 엔진 가동 (force_refresh={force_refresh})...")
+    build_success = False
+    try:
+        import build_master_data
+        build_success = build_master_data.main()
+    except Exception as e:
+        print(f"[data_loader] 최신 데이터 자동 수집 중 예외 발생: {e}")
+
+    # 수집 완료 후 생성된 최신 캐시 로드
     if os.path.exists(cache_path):
         try:
             df = pd.read_csv(cache_path, dtype={'코드/티커': str}, encoding='utf-8-sig')
             if not df.empty and len(df) >= 100:
-                return df, date_display
+                cleanup_old_caches(keep_count=5)
+                return df, target_date, False
         except Exception as e:
-            print(f"[data_loader] 당일 캐시 로드 실패: {e}")
+            print(f"[data_loader] 새로 생성된 캐시 로드 실패: {e}")
 
-    # 3. 마스터 파일 확인
+    # 3. 비상 대비 Fallback: 외부 API 차단/네트워크 단절 등으로 당일 수집 실패 시
+    #    과거 마스터 파일을 읽되, is_fallback=True 플래그와 실제 파일 날짜를 반환하여
+    #    화면상에 경고 배너를 명시적으로 노출할 수 있도록 함.
+    print("[data_loader] ⚠️ 최신 데이터 수집 실패로 기존 마스터 파일(Fallback) 로드를 시도합니다.")
+    fallback_date = get_fallback_data_date()
     if os.path.exists(MASTER_FILE):
         try:
             df = pd.read_csv(MASTER_FILE, dtype={'코드/티커': str}, encoding='utf-8-sig')
             if not df.empty and len(df) >= 100:
-                return df, date_display
+                return df, fallback_date, True
         except Exception as e:
-            print(f"[data_loader] 마스터 파일 로드 실패: {e}")
+            print(f"[data_loader] Fallback 마스터 파일 로드 실패: {e}")
 
-    # 4. 캐시/마스터 모두 없을 시 빌드 실행
-    try:
-        import build_master_data
-        build_master_data.main()
-        if os.path.exists(MASTER_FILE):
-            df = pd.read_csv(MASTER_FILE, dtype={'코드/티커': str}, encoding='utf-8-sig')
-            return df, date_display
-    except Exception as e:
-        print(f"[data_loader] 마스터 데이터 빌드 실패: {e}")
-
-    return pd.DataFrame(), date_display
+    return pd.DataFrame(), target_date, True
 
 
 def load_etf_history(ticker: str, market: str, months: int = 12):
