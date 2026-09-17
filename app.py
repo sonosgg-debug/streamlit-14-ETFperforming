@@ -751,6 +751,15 @@ with col_ch1:
             hovertemplate="%{y:,.0f}주" if is_korean else "%{y:,.0f}"
         ), row=2, col=1)
 
+        # 주말 및 공휴일 공백 제거 (5일 주기 끊김 및 0값 방지)
+        dt_all = pd.date_range(start=df_history.index[0], end=df_history.index[-1], freq='B')
+        existing_dates = set(pd.to_datetime(df_history.index).normalize())
+        holidays = [d.strftime('%Y-%m-%d') for d in dt_all if d.normalize() not in existing_dates]
+        rbreaks = [dict(bounds=["sat", "mon"])]
+        if holidays:
+            rbreaks.append(dict(values=holidays))
+        fig1.update_xaxes(rangebreaks=rbreaks)
+
     fig1.update_layout(
         hovermode="x unified",
         hoverlabel=dict(
