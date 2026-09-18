@@ -441,7 +441,7 @@ df_display_source["순위"] = list(range(1, len(df_display_source) + 1))
 # 7. 메인 타이틀 영역
 # ==========================================
 st.markdown(
-    "<h1 style='color: #8AB4F8 !important; font-weight: 800; font-size: 1.95rem; margin-top: 0; margin-bottom: 0.3rem; letter-spacing: -0.5px;'>"
+    "<h1 style='text-align: center; color: #8AB4F8 !important; font-weight: 800; font-size: 1.9rem; margin-top: 0; margin-bottom: 0.3rem; letter-spacing: -0.5px;'>"
     "한국 및 미국 증시 ETF 수익률 비교"
     "</h1>",
     unsafe_allow_html=True
@@ -449,7 +449,7 @@ st.markdown(
 
 # 메타 정보 표시줄
 st.markdown(
-    f"<div style='font-size: 0.86rem; color: #94a3b8; margin-bottom: 12px;'>"
+    f"<div style='text-align: center; font-size: 0.86rem; color: #94a3b8; margin-bottom: 12px;'>"
     f"기준일: <span style='color: #38bdf8; font-weight: 600;'>{target_date}</span> (전일 종가 기준) &nbsp;|&nbsp; "
     f"선택 시장: <span style='color: #f8fafc; font-weight: 700;'>{active_market}</span> &nbsp;|&nbsp; "
     f"선택 배율: <span style='color: #fbbf24; font-weight: 700;'>{active_leverage}</span> &nbsp;|&nbsp; "
