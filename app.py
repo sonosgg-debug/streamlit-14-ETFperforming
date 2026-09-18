@@ -26,7 +26,6 @@ import data_loader
 # ==========================================
 st.set_page_config(
     page_title="한국 및 미국 증시 ETF 수익률 비교",
-    page_icon="📈",
     layout="wide",
     initial_sidebar_state="expanded"
 )
