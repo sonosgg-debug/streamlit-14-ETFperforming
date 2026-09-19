@@ -527,7 +527,7 @@ with col_dl:
     excel_bytes = data_loader.create_excel_download(df_display_source, active_market, active_leverage)
     file_name = f"{active_market.replace(' ', '_')}_{active_leverage}_ETF_수익률_TOP100_{target_date.replace('-', '')}.xlsx"
     st.download_button(
-        label="📥 엑셀 다운로드 (.xlsx)",
+        label="📥 엑셀 파일 다운로드",
         data=excel_bytes,
         file_name=file_name,
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
