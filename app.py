@@ -127,19 +127,6 @@ st.markdown("""
         box-shadow: 0 0 10px rgba(37, 99, 235, 0.4) !important;
     }
 
-    .stDownloadButton button {
-        background-color: #059669 !important;
-        color: #ffffff !important;
-        border: none !important;
-        font-weight: 600 !important;
-        border-radius: 6px !important;
-        transition: all 0.2s ease !important;
-    }
-    .stDownloadButton button:hover {
-        background-color: #047857 !important;
-        box-shadow: 0 0 10px rgba(5, 150, 105, 0.4) !important;
-    }
-
     /* Badges */
     .badge-bull {
         background-color: rgba(239, 68, 68, 0.18);
