@@ -296,11 +296,6 @@ with st.sidebar:
         help="조회할 ETF 시장을 선택합니다. (K Market: 한국거래소 상장 ETF, US Market: 미국 뉴욕/나스닥 상장 ETF)"
     )
 
-    if market_choice != st.session_state.market_selection:
-        st.session_state.market_selection = market_choice
-        st.session_state.selected_etf_name = None
-        st.rerun()
-
     # 2) 배율 선택 (3X, 2X, 1X 디폴트, -1X, -2X, -3X, 전체)
     leverage_options = ["1X", "2X", "3X", "-1X", "-2X", "-3X", "전체(All)"]
     current_lev_idx = leverage_options.index(st.session_state.leverage_selection) if st.session_state.leverage_selection in leverage_options else 0
@@ -311,14 +306,17 @@ with st.sidebar:
         help="조회할 ETF의 레버리지 배율을 선택합니다. (디폴트: 1X 기본형)"
     )
 
-    if leverage_choice != st.session_state.leverage_selection:
+    # 3) 조회 버튼
+    btn_search = st.button("🔍 조회", type="primary", use_container_width=True)
+    if btn_search or (market_choice != st.session_state.market_selection) or (leverage_choice != st.session_state.leverage_selection):
+        st.session_state.market_selection = market_choice
         st.session_state.leverage_selection = leverage_choice
         st.session_state.selected_etf_name = None
         st.rerun()
 
     st.markdown("<hr style='border: 0; height: 1px; background-color: #334155; margin: 16px 0;'>", unsafe_allow_html=True)
 
-    # 3) 스마트 필터 (사용자 특별 요청: 정렬 기준 1W~3Y 선택 기능)
+    # 4) 스마트 필터 (사용자 특별 요청: 정렬 기준 1W~3Y 선택 기능)
     st.markdown("<div style='font-size: 0.95rem; font-weight: 700; color: #cbd5e1; margin-bottom: 8px;'>🎯 스마트 필터</div>", unsafe_allow_html=True)
 
     search_keyword = st.text_input(
@@ -358,7 +356,7 @@ with st.sidebar:
 
     st.markdown("<hr style='border: 0; height: 1px; background-color: #334155; margin: 16px 0;'>", unsafe_allow_html=True)
 
-    # 4) 최신 데이터 강제 갱신 버튼
+    # 5) 최신 데이터 강제 갱신 버튼
     if st.button("🔄 최신 데이터 강제 갱신", use_container_width=True, help="최신 전일 종가 및 7대 기간 수익률을 다시 수집하고 캐시를 갱신합니다."):
         st.cache_data.clear()
         st.session_state.force_reload = True
