@@ -60,6 +60,7 @@ st.markdown("""
     h1, .main h1, [data-testid="stHeadingWithActionElements"] h1 {
         color: #8AB4F8 !important;
         font-weight: 800 !important;
+        font-size: 2.0rem !important;
     }
 
     section[data-testid="stSidebar"] h1, 
@@ -344,7 +345,7 @@ with st.sidebar:
     st.markdown("<hr style='border: 0; height: 1px; background-color: #334155; margin: 16px 0;'>", unsafe_allow_html=True)
 
     # 5) 최신 데이터 강제 갱신 버튼
-    if st.button("🔄 최신 데이터 강제 갱신", use_container_width=True, help="최신 전일 종가 및 7대 기간 수익률을 다시 수집하고 캐시를 갱신합니다."):
+    if st.button("🔄 Update", use_container_width=True, help="최신 전일 종가 및 7대 기간 수익률을 다시 수집하고 캐시를 갱신합니다."):
         st.cache_data.clear()
         st.session_state.force_reload = True
         st.rerun()
@@ -426,7 +427,7 @@ df_display_source["순위"] = list(range(1, len(df_display_source) + 1))
 # 7. 메인 타이틀 영역
 # ==========================================
 st.markdown(
-    "<h1 style='text-align: center; color: #8AB4F8 !important; font-weight: 800; font-size: 1.9rem; margin-top: 0; margin-bottom: 0.3rem; letter-spacing: -0.5px;'>"
+    "<h1 style='text-align: center; color: #8AB4F8 !important; font-weight: 800; font-size: 2.0rem; margin-top: 0; margin-bottom: 0.3rem; letter-spacing: -0.5px;'>"
     "한국 및 미국 증시 ETF 수익률 비교"
     "</h1>",
     unsafe_allow_html=True
@@ -449,7 +450,7 @@ if is_fallback:
     st.warning(
         f"⚠️ **외부 통신 지연 안내**: 최신 영업일({target_business_date}) 데이터의 자동 수집이 지연되어 "
         f"기존 저장된 데이터({target_date} 기준)가 표시되고 있습니다. 최신 데이터로 업데이트를 원하시면 "
-        f"왼쪽 사이드바의 **'🔄 최신 데이터 강제 갱신'** 버튼을 클릭해 주세요."
+        f"왼쪽 사이드바의 **'🔄 Update'** 버튼을 클릭해 주세요."
     )
 
 # 한국 3X/-3X 규제 예외 안내 배너
@@ -987,3 +988,12 @@ with col_d3:
             st.write(f"⚠️ **하락 추세 지속**: 단기 및 중장기 수익률이 모두 약세를 보이고 있습니다. 역배열 구간이므로 바닥 확인 후 분할 매수를 검토하세요. (52주 고점 대비 {h_diff:.1f}%)")
         else:
             st.write(f"⚖️ **박스권 횡보 국면**: 단기({ret_1m:+.1f}%)와 중장기 수익률이 혼조세를 보이며 매물대를 소화하고 있습니다. 지지선과 저항선을 기준으로 박스권 매매 전략이 유효합니다.")
+
+# 하단 투자 유의사항 공통 푸터
+st.markdown("<hr style='border: 0; height: 1px; background-color: #334155; margin: 30px 0 10px 0;'>", unsafe_allow_html=True)
+st.markdown(
+    "<div style='text-align: center; color: #64748b; font-size: 0.8rem; margin-top: 8px; margin-bottom: 24px; line-height: 1.6;'>"
+    "⚠️ 본 서비스에서 제공하는 모든 정보는 투자 참고용이며, 투자의 최종 결정과 책임은 투자자 본인에게 있습니다."
+    "</div>",
+    unsafe_allow_html=True
+)
