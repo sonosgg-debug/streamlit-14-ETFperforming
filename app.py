@@ -294,17 +294,9 @@ with st.sidebar:
         help="조회할 ETF의 레버리지 배율을 선택합니다. (디폴트: 1X 기본형)"
     )
 
-    # 3) 조회 버튼
-    btn_search = st.button("🔍 조회", type="primary", use_container_width=True)
-    if btn_search or (market_choice != st.session_state.market_selection) or (leverage_choice != st.session_state.leverage_selection):
-        st.session_state.market_selection = market_choice
-        st.session_state.leverage_selection = leverage_choice
-        st.session_state.selected_etf_name = None
-        st.rerun()
-
     st.markdown("<hr style='border: 0; height: 1px; background-color: #334155; margin: 16px 0;'>", unsafe_allow_html=True)
 
-    # 4) 스마트 필터 (사용자 특별 요청: 정렬 기준 1W~3Y 선택 기능)
+    # 3) 스마트 필터 (사용자 특별 요청: 정렬 기준 1W~3Y 선택 기능)
     st.markdown("<div style='font-size: 0.95rem; font-weight: 700; color: #cbd5e1; margin-bottom: 8px;'>🎯 스마트 필터</div>", unsafe_allow_html=True)
 
     search_keyword = st.text_input(
@@ -344,10 +336,22 @@ with st.sidebar:
 
     st.markdown("<hr style='border: 0; height: 1px; background-color: #334155; margin: 16px 0;'>", unsafe_allow_html=True)
 
-    # 5) 최신 데이터 강제 갱신 버튼
-    if st.button("🔄 Update", use_container_width=True, help="최신 전일 종가 및 7대 기간 수익률을 다시 수집하고 캐시를 갱신합니다."):
+    # 4) Update & 조회 버튼 (다른 앱과의 레이아웃 통일: 왼쪽 Update, 오른쪽 조회)
+    col_btn1, col_btn2 = st.columns(2)
+    with col_btn1:
+        btn_update = st.button("🔄 Update", use_container_width=True, help="최신 전일 종가 및 7대 기간 수익률을 다시 수집하고 캐시를 갱신합니다.")
+    with col_btn2:
+        btn_search = st.button("🔍 조회", type="primary", use_container_width=True, help="선택한 조건으로 대시보드를 조회합니다.")
+
+    if btn_update:
         st.cache_data.clear()
         st.session_state.force_reload = True
+        st.rerun()
+
+    if btn_search or (market_choice != st.session_state.market_selection) or (leverage_choice != st.session_state.leverage_selection):
+        st.session_state.market_selection = market_choice
+        st.session_state.leverage_selection = leverage_choice
+        st.session_state.selected_etf_name = None
         st.rerun()
 
 
