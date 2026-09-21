@@ -6,6 +6,8 @@ data_loader.py
 
 import os
 import io
+import json
+import importlib
 import datetime
 import pandas as pd
 import numpy as np
@@ -23,6 +25,7 @@ CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 CACHE_DIR = os.path.join(CURRENT_DIR, "cache")
 os.makedirs(CACHE_DIR, exist_ok=True)
 MASTER_FILE = os.path.join(CURRENT_DIR, "etf_master_data.csv")
+META_FILE = os.path.join(CURRENT_DIR, "etf_master_meta.json")
 
 
 def get_latest_business_date():
@@ -65,8 +68,19 @@ def cleanup_old_caches(keep_count: int = 5):
 
 
 def get_fallback_data_date() -> str:
-    """캐시 또는 마스터 파일로부터 실제 데이터의 기준 날짜를 추정"""
+    """캐시 또는 마스터 메타 파일로부터 실제 데이터의 기준 날짜를 정확히 추정"""
     try:
+        # 1. 메타 파일이 존재하면 저장된 기준일 우선 반환
+        if os.path.exists(META_FILE):
+            try:
+                with open(META_FILE, 'r', encoding='utf-8') as f:
+                    meta = json.load(f)
+                    if meta.get("target_date"):
+                        return meta["target_date"]
+            except Exception:
+                pass
+
+        # 2. 캐시 디렉토리 내 최신 파일명에서 날짜 파싱
         if os.path.exists(CACHE_DIR):
             files = [f for f in os.listdir(CACHE_DIR) if f.startswith("etf_summary_") and f.endswith(".csv")]
             files.sort(reverse=True)
@@ -75,6 +89,8 @@ def get_fallback_data_date() -> str:
                 dt_str = files[0].replace("etf_summary_", "").replace(".csv", "")
                 if len(dt_str) == 8:
                     return f"{dt_str[:4]}-{dt_str[4:6]}-{dt_str[6:8]}"
+
+        # 3. 최후의 수단: 파일 mtime
         if os.path.exists(MASTER_FILE):
             mtime = os.path.getmtime(MASTER_FILE)
             return datetime.datetime.fromtimestamp(mtime).strftime('%Y-%m-%d')
@@ -110,6 +126,7 @@ def load_etf_data(force_refresh=False):
     build_success = False
     try:
         import build_master_data
+        importlib.reload(build_master_data)
         build_success = build_master_data.main()
     except Exception as e:
         print(f"[data_loader] 최신 데이터 자동 수집 중 예외 발생: {e}")

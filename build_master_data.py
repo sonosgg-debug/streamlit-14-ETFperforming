@@ -11,6 +11,7 @@ import time
 import datetime
 from concurrent.futures import ThreadPoolExecutor
 import requests
+import json
 import pandas as pd
 import numpy as np
 
@@ -135,15 +136,26 @@ def build_kr_market_data():
 
     print(f"[K Market] 총 {len(raw_items)}개 ETF 항목 파싱 완료.")
 
-    # 1. 배율 분류 및 기본 데이터 매핑 (전일 확정 종가 기준 산출)
+    # 한국 시장 마감 여부 판별 (평일 15:30 이후 또는 주말은 금일 장이 이미 마감되어 확정 종가임)
+    now_utc = datetime.datetime.now(datetime.timezone.utc)
+    now_kst = now_utc + datetime.timedelta(hours=9)
+    is_kr_closed = (now_kst.weekday() >= 5) or (now_kst.hour > 15) or (now_kst.hour == 15 and now_kst.minute >= 30)
+
+    # 1. 배율 분류 및 기본 데이터 매핑 (확정 종가 기준 산출)
     parsed_items = []
     for it in raw_items:
         code = str(it.get('itemcode', '')).zfill(6)
         name = it.get('itemname', '')
         now_val = float(it.get('nowVal', 0) or 0)
         change_val = float(it.get('changeVal', 0) or 0)
-        # 네이버 금융 API에서 장중 nowVal은 실시간가이므로, 전일 확정 종가는 nowVal - changeVal 로 정밀 산출
-        prev_close = (now_val - change_val) if (now_val > 0 and change_val is not None) else now_val
+
+        if is_kr_closed:
+            # 장마감 후: nowVal이 금일 확정 종가
+            confirmed_price = now_val
+        else:
+            # 장중: 실시간 변동가이므로 전일 확정 종가 사용
+            confirmed_price = (now_val - change_val) if (now_val > 0 and change_val is not None) else now_val
+
         quant = int(it.get('quant', 0) or 0)
         trade_val_won = float(it.get('amonut', 0) or 0) * 1_000_000
         leverage = classify_kr_leverage(name)
@@ -154,7 +166,7 @@ def build_kr_market_data():
             '종목명': name,
             '시장': 'K Market',
             '배율': leverage,
-            '현재가': prev_close,
+            '현재가': confirmed_price,
             '거래량': quant,
             '거래대금': trade_val_won,
             '시가총액': mcap_won,
@@ -181,8 +193,8 @@ def build_kr_market_data():
         try:
             df_hist = fdr.DataReader(code, start_date)
             if df_hist is not None and not df_hist.empty and len(df_hist) >= 2:
-                # 장중 실시간 데이터(오늘 일자)가 포함되어 있다면 '전일 종가 기준' 일치를 위해 전일까지로 슬라이싱
-                if df_hist.index[-1].strftime('%Y-%m-%d') >= today_str:
+                # 장중(is_kr_closed == False)에 오늘 일자 실시간봉이 포함되어 있다면 전일 종가 기준 일치를 위해 전일까지로 슬라이싱
+                if not is_kr_closed and df_hist.index[-1].strftime('%Y-%m-%d') >= today_str:
                     df_target = df_hist.iloc[:-1]
                 else:
                     df_target = df_hist
@@ -190,12 +202,10 @@ def build_kr_market_data():
                 if len(df_target) >= 2:
                     p_close = float(df_target['Close'].iloc[-1])
                     p_vol = int(df_target['Volume'].iloc[-1])
-                    p_val = float(p_close * p_vol)
                     rets = compute_period_returns(df_target['Close'])
                     return code, {
                         'prev_close': p_close,
                         'prev_vol': p_vol,
-                        'prev_val': p_val,
                         'returns': rets
                     }
         except Exception:
@@ -216,8 +226,8 @@ def build_kr_market_data():
         r = hist_returns.get(c)
         if r:
             curr_p = r['prev_close']
-            vol_p = r['prev_vol']
-            val_p = r['prev_val']
+            vol_p = r['prev_vol'] if r['prev_vol'] > 0 else row['거래량']
+            val_p = row['거래대금'] if row['거래대금'] > 0 else float(curr_p * vol_p)
             rets = r['returns']
             ret_1w = rets['1W(%)']
             ret_2w = rets['2W(%)']
@@ -458,14 +468,18 @@ def build_us_market_data():
         if c_series.empty or len(c_series) < 2:
             continue
 
+        v_series = volume_df[ticker].dropna() if volume_df is not None and ticker in volume_df.columns else None
+
         today_str = datetime.datetime.now().strftime('%Y-%m-%d')
         if c_series.index[-1].strftime('%Y-%m-%d') >= today_str:
             c_series = c_series.iloc[:-1]
-            if v_series is not None and len(v_series) > len(c_series):
+            if v_series is not None and not v_series.empty and len(v_series) > len(c_series):
                 v_series = v_series.iloc[:-1]
 
+        if c_series.empty or len(c_series) < 2:
+            continue
+
         curr_price = round(float(c_series.iloc[-1]), 2)
-        v_series = volume_df[ticker].dropna() if volume_df is not None and ticker in volume_df.columns else None
         curr_volume = int(v_series.iloc[-1]) if v_series is not None and not v_series.empty else 0
         trade_val_usd = round(curr_price * curr_volume, 2)
 
@@ -526,18 +540,30 @@ def main():
     ]
     df_master = df_master[final_cols].copy()
 
-    # 4. 마스터 파일 및 캐시 파일 저장
+    # 4. 마스터 파일, 캐시 파일 및 메타데이터 저장
     target_date = get_latest_business_date()
     today_clean = target_date.replace('-', '')
     cache_path = os.path.join(CACHE_DIR, f"etf_summary_{today_clean}.csv")
+    meta_path = os.path.join(CURRENT_DIR, "etf_master_meta.json")
 
     df_master.to_csv(MASTER_FILE, index=False, encoding='utf-8-sig')
     df_master.to_csv(cache_path, index=False, encoding='utf-8-sig')
+
+    meta_info = {
+        "target_date": target_date,
+        "updated_at": datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+        "kr_count": len(df_kr),
+        "us_count": len(df_us),
+        "total_count": len(df_master)
+    }
+    with open(meta_path, 'w', encoding='utf-8') as f:
+        json.dump(meta_info, f, ensure_ascii=False, indent=2)
 
     print(f"\n✅ 마스터 데이터셋 생성 완료:")
     print(f"   - 총 종목 수: {len(df_master)}개 (한국: {len(df_kr)}개, 미국: {len(df_us)}개)")
     print(f"   - 마스터 파일: {MASTER_FILE}")
     print(f"   - 오늘자 캐시: {cache_path}")
+    print(f"   - 메타 파일: {meta_path}")
     print(f"   - 기준일: {target_date}")
     return True
 
