@@ -119,12 +119,16 @@ def compute_period_returns(series_close: pd.Series):
     }
 
 
-def build_kr_market_data():
+def build_kr_market_data(target_date: str = None):
     """
     네이버 금융 ETF 공식 API 및 FinanceDataReader를 활용하여
-    K Market 전체 ETF 중 거래대금 상위 및 레버리지/인버스 종목 전수 데이터 수집
+    K Market 전체 ETF 중 거래대금 상위 및 레버리지/인버스 종목 전수 데이터 수집.
+    target_date: 영업일 기준일 (예: '2026-09-21'). 미지정 시 get_latest_business_date() 사용.
     """
-    print("[K Market] 한국 ETF 전체 목록 조회 중 (네이버 금융 API)...")
+    if not target_date:
+        target_date = get_latest_business_date()
+
+    print(f"[K Market] 한국 ETF 전체 목록 조회 중 (네이버 금융 API, 기준일: {target_date})...")
     url = "https://finance.naver.com/api/sise/etfItemList.nhn"
     headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
     try:
@@ -136,10 +140,15 @@ def build_kr_market_data():
 
     print(f"[K Market] 총 {len(raw_items)}개 ETF 항목 파싱 완료.")
 
-    # 한국 시장 마감 여부 판별 (평일 15:30 이후 또는 주말은 금일 장이 이미 마감되어 확정 종가임)
+    # 한국 정규 거래 시간 여부 판별 (평일 09:00 ~ 15:30 KST만 '장중'으로 판정)
+    # 그 외의 시간(평일 15:30~24:00, 평일 새벽 00:00~08:59, 주말 전체)은 장이 열리지 않은 마감 상태임!
     now_utc = datetime.datetime.now(datetime.timezone.utc)
     now_kst = now_utc + datetime.timedelta(hours=9)
-    is_kr_closed = (now_kst.weekday() >= 5) or (now_kst.hour > 15) or (now_kst.hour == 15 and now_kst.minute >= 30)
+    is_kr_trading_hours = (now_kst.weekday() < 5) and (
+        (now_kst.hour == 9 and now_kst.minute >= 0) or
+        (9 < now_kst.hour < 15) or
+        (now_kst.hour == 15 and now_kst.minute <= 30)
+    )
 
     # 1. 배율 분류 및 기본 데이터 매핑 (확정 종가 기준 산출)
     parsed_items = []
@@ -149,12 +158,12 @@ def build_kr_market_data():
         now_val = float(it.get('nowVal', 0) or 0)
         change_val = float(it.get('changeVal', 0) or 0)
 
-        if is_kr_closed:
-            # 장마감 후: nowVal이 금일 확정 종가
-            confirmed_price = now_val
-        else:
-            # 장중: 실시간 변동가이므로 전일 확정 종가 사용
+        if is_kr_trading_hours:
+            # 평일 09:00~15:30 장중: 실시간 변동가이므로 전일 확정 종가 산출
             confirmed_price = (now_val - change_val) if (now_val > 0 and change_val is not None) else now_val
+        else:
+            # 장마감 후, 야간, 새벽, 주말: nowVal이 최근 마감 영업일의 확정 종가!
+            confirmed_price = now_val
 
         quant = int(it.get('quant', 0) or 0)
         trade_val_won = float(it.get('amonut', 0) or 0) * 1_000_000
@@ -186,18 +195,14 @@ def build_kr_market_data():
     print(f"[K Market] 수익률 산출 대상 {len(target_codes)}개 ETF 시계열 병렬 수집 시작...")
 
     start_date = (datetime.datetime.now() - datetime.timedelta(days=365 * 3 + 60)).strftime('%Y-%m-%d')
-    today_str = datetime.datetime.now().strftime('%Y-%m-%d')
     hist_returns = {}
 
     def fetch_kr_history(code):
         try:
             df_hist = fdr.DataReader(code, start_date)
-            if df_hist is not None and not df_hist.empty and len(df_hist) >= 2:
-                # 장중(is_kr_closed == False)에 오늘 일자 실시간봉이 포함되어 있다면 전일 종가 기준 일치를 위해 전일까지로 슬라이싱
-                if not is_kr_closed and df_hist.index[-1].strftime('%Y-%m-%d') >= today_str:
-                    df_target = df_hist.iloc[:-1]
-                else:
-                    df_target = df_hist
+            if df_hist is not None and not df_hist.empty:
+                # 서버 타임존(UTC 등)과 무관하게, 명확한 기준일(target_date) 이하의 데이터만 정확히 슬라이싱
+                df_target = df_hist.loc[:target_date]
 
                 if len(df_target) >= 2:
                     p_close = float(df_target['Close'].iloc[-1])
@@ -435,14 +440,17 @@ US_ETF_UNIVERSE = [
 ]
 
 
-def build_us_market_data():
+def build_us_market_data(target_date: str = None):
     """
     yfinance 일괄 배치 다운로드를 통해 US Market 주요 ETF의 가격, 거래대금, 7대 기간 수익률 수집
     """
+    if not target_date:
+        target_date = get_latest_business_date()
+
     tickers = [item[0] for item in US_ETF_UNIVERSE]
     meta_map = {item[0]: {'name': item[1], 'leverage': item[2]} for item in US_ETF_UNIVERSE}
 
-    print(f"[US Market] 총 {len(tickers)}개 US ETF 시계열 일괄 배치 다운로드 시작...")
+    print(f"[US Market] 총 {len(tickers)}개 US ETF 시계열 일괄 배치 다운로드 시작 (기준일: {target_date})...")
     t0 = time.time()
     try:
         data = yf.download(tickers, period="3y", interval="1d", progress=False, group_by='column')
@@ -460,6 +468,15 @@ def build_us_market_data():
         print("[US Market] Close 데이터를 파싱할 수 없습니다.")
         return pd.DataFrame()
 
+    # 미국 시장 거래시간 여부 판별 (미국 동부 EDT 기준 평일 09:30 ~ 16:00 정규장)
+    now_utc = datetime.datetime.now(datetime.timezone.utc)
+    now_edt = now_utc - datetime.timedelta(hours=4) # EDT: UTC-4
+    is_us_trading_hours = (now_edt.weekday() < 5) and (
+        (now_edt.hour == 9 and now_edt.minute >= 30) or
+        (10 <= now_edt.hour < 16)
+    )
+    today_edt_str = now_edt.strftime('%Y-%m-%d')
+
     for ticker in tickers:
         if ticker not in close_df.columns:
             continue
@@ -470,8 +487,8 @@ def build_us_market_data():
 
         v_series = volume_df[ticker].dropna() if volume_df is not None and ticker in volume_df.columns else None
 
-        today_str = datetime.datetime.now().strftime('%Y-%m-%d')
-        if c_series.index[-1].strftime('%Y-%m-%d') >= today_str:
+        # 만약 미국 정규장 진행 중(is_us_trading_hours)이고 데이터에 오늘자 실시간 미마감 봉이 있다면 전일까지로 슬라이싱
+        if is_us_trading_hours and c_series.index[-1].strftime('%Y-%m-%d') >= today_edt_str:
             c_series = c_series.iloc[:-1]
             if v_series is not None and not v_series.empty and len(v_series) > len(c_series):
                 v_series = v_series.iloc[:-1]
@@ -520,11 +537,13 @@ def main():
     print("  한국 및 미국 증시 ETF 마스터 데이터 수집 엔진 시작")
     print("=" * 60)
 
+    target_date = get_latest_business_date()
+
     # 1. K Market 데이터 구축
-    df_kr = build_kr_market_data()
+    df_kr = build_kr_market_data(target_date=target_date)
 
     # 2. US Market 데이터 구축
-    df_us = build_us_market_data()
+    df_us = build_us_market_data(target_date=target_date)
 
     # 3. 데이터 통합
     if df_kr.empty and df_us.empty:
@@ -541,7 +560,6 @@ def main():
     df_master = df_master[final_cols].copy()
 
     # 4. 마스터 파일, 캐시 파일 및 메타데이터 저장
-    target_date = get_latest_business_date()
     today_clean = target_date.replace('-', '')
     cache_path = os.path.join(CACHE_DIR, f"etf_summary_{today_clean}.csv")
     meta_path = os.path.join(CURRENT_DIR, "etf_master_meta.json")
