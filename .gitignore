@@ -1,4 +1,4 @@
-﻿# Python
+# Python
 __pycache__/
 *.py[cod]
 *$py.class
@@ -11,9 +11,9 @@ venv/
 ENV/
 
 # Data Cache
-cache/
 *.csv
 !etf_master_data.csv
+!cache/etf_summary_*.csv
 
 # Streamlit
 # Streamlit secrets (config.toml은 다크 테마 적용을 위해 git에 포함)

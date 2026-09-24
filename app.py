@@ -429,7 +429,7 @@ st.session_state.force_reload = False
 target_business_date = data_loader.get_latest_business_date()
 is_cached_today = data_loader.is_cache_available(target_business_date)
 
-if not is_cached_today or force_refresh:
+if force_refresh:
     spinner_msg = f"🔄 최신 영업일({target_business_date}) ETF 데이터를 자동으로 수집 및 정제하고 있습니다. 잠시만 기다려 주세요 (약 20~30초 소요)..."
 else:
     spinner_msg = "한국 및 미국 증시 ETF 데이터를 불러오는 중입니다..."
