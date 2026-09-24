@@ -38,22 +38,7 @@ except Exception:
 # ==========================================
 # 1. 영업일 및 기준일 유틸리티
 # ==========================================
-def get_latest_business_date():
-    """
-    가장 최근 거래 완료된 영업일 YYYY-MM-DD 반환.
-    - 한국 장 마감 시간(15:30) 고려하여 평일 16:00 이전에는 전일(또는 직전 평일)
-    - 평일 16:00 이후에는 당일
-    - 주말은 직전 금요일
-    """
-    now_utc = datetime.datetime.now(datetime.timezone.utc)
-    now_kst = now_utc + datetime.timedelta(hours=9)
-    start_offset = 0 if (now_kst.weekday() < 5 and now_kst.hour >= 16) else 1
-
-    for i in range(start_offset, start_offset + 10):
-        d = now_kst - datetime.timedelta(days=i)
-        if d.weekday() < 5:
-            return d.strftime('%Y-%m-%d')
-    return (now_kst - datetime.timedelta(days=1)).strftime('%Y-%m-%d')
+from data_loader import get_latest_business_date, get_krx_trading_days, is_krx_trading_day
 
 
 # ==========================================
