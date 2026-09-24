@@ -319,24 +319,44 @@ if 'force_reload' not in st.session_state:
 with st.sidebar:
     st.markdown("<h2 style='color: #8AB4F8; font-size: 1.3rem; margin-top: 0;'>⚙️ 시장 & 배율 선택</h2>", unsafe_allow_html=True)
 
-    # 1) 시장 선택 (K Market 디폴트, US Market)
-    market_options = ["K Market", "US Market"]
+    # 1) 시장 선택 (한국 시장 (KRX) 디폴트, 미국 시장 (US))
+    market_options = ["한국 시장 (KRX)", "미국 시장 (US)"]
+    if st.session_state.market_selection == "K Market":
+        st.session_state.market_selection = "한국 시장 (KRX)"
+    elif st.session_state.market_selection == "US Market":
+        st.session_state.market_selection = "미국 시장 (US)"
     current_mkt_idx = market_options.index(st.session_state.market_selection) if st.session_state.market_selection in market_options else 0
     market_choice = st.radio(
-        "시장 선택",
+        "🏛️ 시장 선택",
         options=market_options,
         index=current_mkt_idx,
-        help="조회할 ETF 시장을 선택합니다. (K Market: 한국거래소 상장 ETF, US Market: 미국 뉴욕/나스닥 상장 ETF)"
+        horizontal=True,
+        help="조회할 ETF 시장을 선택합니다. (한국거래소 상장 ETF, 미국 뉴욕/나스닥 상장 ETF)"
     )
 
-    # 2) 배율 선택 (3X, 2X, 1X 디폴트, -1X, -2X, -3X, 전체)
-    leverage_options = ["1X", "2X", "3X", "-1X", "-2X", "-3X", "전체(All)"]
+    # 2) 배율 선택 (가로 2열 배치: 제1열 1X, 2X, 3X / 제2열 -1X, -2X, -3X)
+    leverage_options = ["1X", "2X", "3X", "-1X", "-2X", "-3X"]
+    if st.session_state.leverage_selection not in leverage_options:
+        st.session_state.leverage_selection = "1X"
     current_lev_idx = leverage_options.index(st.session_state.leverage_selection) if st.session_state.leverage_selection in leverage_options else 0
+    
+    st.markdown("""
+    <style>
+    div[data-testid="stRadio"]:has(input[value="-1X"]) div[role="radiogroup"] {
+        display: grid !important;
+        grid-auto-flow: column !important;
+        grid-template-rows: repeat(3, auto) !important;
+        grid-template-columns: 1fr 1fr !important;
+        gap: 6px 12px !important;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+    
     leverage_choice = st.radio(
         "배율 선택 (Multiplier)",
         options=leverage_options,
         index=current_lev_idx,
-        help="조회할 ETF의 레버리지 배율을 선택합니다. (디폴트: 1X 기본형)"
+        help="조회할 ETF의 레버리지 배율을 선택합니다. (제1열: 1X, 2X, 3X / 제2열: -1X, -2X, -3X)"
     )
 
     st.markdown("<hr style='border: 0; height: 1px; background-color: #334155; margin: 16px 0;'>", unsafe_allow_html=True)
@@ -423,18 +443,16 @@ if df_raw.empty:
 
 # 1) 선택된 시장 필터링
 active_market = st.session_state.market_selection
-is_korean = (active_market == "K Market")
+target_market = "K Market" if ("한국" in active_market or "KRX" in active_market or active_market == "K Market") else "US Market"
+is_korean = (target_market == "K Market")
 currency_symbol = "₩" if is_korean else "$"
 currency_unit = "원" if is_korean else "달러"
 
-df_market = df_raw[df_raw["시장"] == active_market].copy()
+df_market = df_raw[df_raw["시장"] == target_market].copy()
 
 # 2) 선택된 배율 필터링
 active_leverage = st.session_state.leverage_selection
-if active_leverage != "전체(All)":
-    df_filtered = df_market[df_market["배율"] == active_leverage].copy()
-else:
-    df_filtered = df_market.copy()
+df_filtered = df_market[df_market["배율"] == active_leverage].copy()
 
 # 3) 한국 시장 3X / -3X 선택 시 규제 안내
 is_kr_3x_warning = is_korean and (active_leverage in ["3X", "-3X"])
