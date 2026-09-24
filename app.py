@@ -334,7 +334,7 @@ with st.sidebar:
         help="조회할 ETF 시장을 선택합니다. (한국거래소 상장 ETF, 미국 뉴욕/나스닥 상장 ETF)"
     )
 
-    # 2) 배율 선택 (가로 2열 배치: 제1열 1X, 2X, 3X / 제2열 -1X, -2X, -3X)
+    # 2) 배율 선택 (가로 2행 배치: 제1행 1X, 2X, 3X / 제2행 -1X, -2X, -3X)
     leverage_options = ["1X", "2X", "3X", "-1X", "-2X", "-3X"]
     if st.session_state.leverage_selection not in leverage_options:
         st.session_state.leverage_selection = "1X"
@@ -342,12 +342,23 @@ with st.sidebar:
     
     st.markdown("""
     <style>
-    div[data-testid="stRadio"]:has(input[value="-1X"]) div[role="radiogroup"] {
+    /* 배율 선택: 가로 2행 배치 (제1행: 1X, 2X, 3X / 제2행: -1X, -2X, -3X) */
+    div[data-testid="stRadio"]:has(input[value="-1X"]) div[role="radiogroup"],
+    div[data-testid="stRadio"]:has(div[role="radiogroup"][aria-label*="배율"]) div[role="radiogroup"],
+    div[role="radiogroup"][aria-label*="배율"] {
         display: grid !important;
-        grid-auto-flow: column !important;
-        grid-template-rows: repeat(3, auto) !important;
-        grid-template-columns: 1fr 1fr !important;
-        gap: 6px 12px !important;
+        grid-template-columns: repeat(3, 1fr) !important;
+        grid-template-rows: auto auto !important;
+        gap: 8px 8px !important;
+        width: 100% !important;
+    }
+    div[data-testid="stRadio"]:has(input[value="-1X"]) div[role="radiogroup"] > label,
+    div[role="radiogroup"][aria-label*="배율"] > label {
+        margin: 0 !important;
+        padding: 2px 0 !important;
+        min-width: 0 !important;
+        display: flex !important;
+        align-items: center !important;
     }
     </style>
     """, unsafe_allow_html=True)
@@ -356,7 +367,8 @@ with st.sidebar:
         "배율 선택 (Multiplier)",
         options=leverage_options,
         index=current_lev_idx,
-        help="조회할 ETF의 레버리지 배율을 선택합니다. (제1열: 1X, 2X, 3X / 제2열: -1X, -2X, -3X)"
+        horizontal=True,
+        help="조회할 ETF의 레버리지 배율을 선택합니다. (제1행: 1X, 2X, 3X / 제2행: -1X, -2X, -3X)"
     )
 
     st.markdown("<hr style='border: 0; height: 1px; background-color: #334155; margin: 16px 0;'>", unsafe_allow_html=True)
