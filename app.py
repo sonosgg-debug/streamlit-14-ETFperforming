@@ -713,7 +713,7 @@ chosen_lev = target_row["배율"]
 
 with col_sel2:
     period_label = st.radio(
-        "차트 분석 기간",
+        "조회 기간",
         options=["3개월", "6개월", "1년", "3년"],
         index=2, # 디폴트 1년
         horizontal=True,
