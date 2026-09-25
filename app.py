@@ -9,6 +9,10 @@ app.py
 - 종목별 상세 정보 및 4대 시각화 인터랙티브 차트 (이동평균, 구간수익률, 벤치마크 비교, MDD 리스크)
 """
 
+
+import socket
+socket.setdefaulttimeout(5.0)
+
 import sys
 import io
 import os

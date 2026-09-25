@@ -9,6 +9,8 @@ import os
 import sys
 import time
 import datetime
+from datetime import timezone, timedelta
+KST = timezone(timedelta(hours=9))
 from concurrent.futures import ThreadPoolExecutor
 import requests
 import json
@@ -179,7 +181,7 @@ def build_kr_market_data(target_date: str = None):
     target_codes = df_targets['코드/티커'].tolist()
     print(f"[K Market] 수익률 산출 대상 {len(target_codes)}개 ETF 시계열 병렬 수집 시작...")
 
-    start_date = (datetime.datetime.now() - datetime.timedelta(days=365 * 3 + 60)).strftime('%Y-%m-%d')
+    start_date = (datetime.datetime.now(KST) - datetime.timedelta(days=365 * 3 + 60)).strftime('%Y-%m-%d')
     hist_returns = {}
 
     def fetch_kr_history(code):
@@ -554,7 +556,7 @@ def main():
 
     meta_info = {
         "target_date": target_date,
-        "updated_at": datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+        "updated_at": datetime.datetime.now(KST).strftime('%Y-%m-%d %H:%M:%S'),
         "kr_count": len(df_kr),
         "us_count": len(df_us),
         "total_count": len(df_master)

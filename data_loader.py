@@ -9,6 +9,7 @@ import io
 import json
 import importlib
 import datetime
+KST = datetime.timezone(datetime.timedelta(hours=9))
 import pandas as pd
 import numpy as np
 import openpyxl
@@ -301,7 +302,7 @@ def load_etf_history(ticker: str, market: str, months: int = 12):
     반환값: (df_history, df_benchmark, mdd_percent, summary_stats)
     """
     days = int(months * 30.5 + 40)
-    start_date = (datetime.datetime.now() - datetime.timedelta(days=days)).strftime('%Y-%m-%d')
+    start_date = (datetime.datetime.now(KST) - datetime.timedelta(days=days)).strftime('%Y-%m-%d')
     bm_ticker = "069500" if market == "K Market" else "SPY"
     bm_name = "코스피 200 (KODEX 200)" if market == "K Market" else "S&P 500 (SPY)"
 
@@ -428,7 +429,7 @@ def create_excel_download(df_input: pd.DataFrame, market: str, leverage: str = "
     ws.row_dimensions[1].height = 36
 
     # 2. 메타 정보 행 추가
-    meta_text = f"생성일시: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M')} | 기준: 전일 종가 기준 | 정렬 디폴트: 거래대금 상위순"
+    meta_text = f"생성일시: {datetime.datetime.now(KST).strftime('%Y-%m-%d %H:%M')} | 기준: 전일 종가 기준 | 정렬 디폴트: 거래대금 상위순"
     ws.merge_cells("A2:O2")
     meta_cell = ws["A2"]
     meta_cell.value = meta_text
