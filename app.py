@@ -129,11 +129,11 @@ st.markdown("""
 
     /* Section Subheaders */
     .section-header {
-        font-size: 1.25rem;
+        font-size: 1.20rem;
         font-weight: 700;
-        color: #e2e8f0;
-        margin-top: 10px;
-        margin-bottom: 12px;
+        color: #8AB4F8;
+        margin-top: 20px;
+        margin-bottom: 10px;
         display: flex;
         align-items: center;
         gap: 8px;
@@ -1051,7 +1051,7 @@ col_d1, col_d2, col_d3 = st.columns(3)
 # 1) 배율 및 포지션 적합성 진단
 with col_d1:
     with st.container(border=True):
-        st.markdown("<div style='font-size: 0.95rem; font-weight: 700; color: #8AB4F8;'>🎯 배율 및 보유 전략 진단</div>", unsafe_allow_html=True)
+        st.markdown("<div style='font-size: 1.00rem; font-weight: 600; color: #E2E8F0; margin-bottom: 8px; display: flex; align-items: center; gap: 6px;'><span>🎯</span> 배율 및 보유 전략 진단</div>", unsafe_allow_html=True)
         if chosen_lev in ["2X", "3X"]:
             st.markdown(
                 f"<span class='badge-bull'>{chosen_lev} 레버리지 상품</span><br><br>"
@@ -1074,7 +1074,7 @@ with col_d1:
 # 2) 유동성 및 거래대금 진단
 with col_d2:
     with st.container(border=True):
-        st.markdown("<div style='font-size: 0.95rem; font-weight: 700; color: #34d399;'>💧 유동성 및 매매 환경 진단</div>", unsafe_allow_html=True)
+        st.markdown("<div style='font-size: 1.00rem; font-weight: 600; color: #E2E8F0; margin-bottom: 8px; display: flex; align-items: center; gap: 6px;'><span>💧</span> 유동성 및 매매 환경 진단</div>", unsafe_allow_html=True)
         t_val = target_row["거래대금"]
         if is_korean:
             if t_val >= 100_000_000_000: # 1000억 이상
@@ -1094,7 +1094,7 @@ with col_d2:
 # 3) 모멘텀 및 추세 진단
 with col_d3:
     with st.container(border=True):
-        st.markdown("<div style='font-size: 0.95rem; font-weight: 700; color: #fbbf24;'>⚡ 모멘텀 및 가격 위치 진단</div>", unsafe_allow_html=True)
+        st.markdown("<div style='font-size: 1.00rem; font-weight: 600; color: #E2E8F0; margin-bottom: 8px; display: flex; align-items: center; gap: 6px;'><span>⚡</span> 모멘텀 및 가격 위치 진단</div>", unsafe_allow_html=True)
         h_diff = stats.get('high_diff', 0.0)
         ret_1m = target_row['1M(%)']
         ret_6m = target_row['6M(%)']
