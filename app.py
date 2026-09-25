@@ -322,7 +322,7 @@ with st.sidebar:
         """
         <div style='padding: 2px 0 12px 0;'>
             <div style='font-size: 1.25rem; font-weight: 700; color: #f8fafc; letter-spacing: -0.01em; display: flex; align-items: center; gap: 8px;'>
-                <span>⚙️</span> 시장 & 배율 선택
+                <span>⚙️</span> 시장/필터 설정
             </div>
             <div style='font-size: 0.82rem; color: #94a3b8; margin-top: 4px; line-height: 1.4;'>
                 조회 시장(한/미)과 레버리지/인버스 배율을 설정합니다.
